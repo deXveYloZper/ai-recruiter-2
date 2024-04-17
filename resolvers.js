@@ -65,8 +65,18 @@ export const resolvers = {
     createCandidate: async (_, { name, email, resume, skills, experience }) => {
       return prisma.candidate.create({
         data: {
-          name, email, resume, skills,
-          experience: { create: experience },
+          name,
+          email,
+          resume,
+          skills,
+          experience: {
+            create: experience.map(exp => ({
+              title: exp.title,
+              company: exp.company,
+              startDate: exp.startDate,
+              endDate: exp.endDate
+            })),
+          },
         },
       });
     },

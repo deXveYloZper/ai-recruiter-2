@@ -9,3 +9,7 @@ package-lock.json
 # Prisma 
 prisma/migrations/
 prisma/schema.prisma 
+
+logs
+
+.gitignore

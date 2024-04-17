@@ -1,5 +1,5 @@
 import winston from 'winston';
-import 'winston-daily-rotate-file';
+import DailyRotateFile from 'winston-daily-rotate-file';
 
 const fileRotateTransport = new winston.transports.DailyRotateFile({
   filename: 'logs/application-%DATE%.log',

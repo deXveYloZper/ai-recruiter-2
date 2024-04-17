@@ -34,6 +34,13 @@ export const typeDefs = gql`
     endDate: String
   }
 
+  input ExperienceInput {
+    title: String!
+    company: String!
+    startDate: String!
+    endDate: String
+  }
+
   type User {
     id: ID!
     email: String!
@@ -59,7 +66,7 @@ export const typeDefs = gql`
   type Mutation {
     createCompany(name: String!, description: String, website: String): Company!
     createJob(title: String!, description: String!, requirements: [String!]!, companyId: ID!): Job!
-    createCandidate(name: String!, email: String!, resume: String, skills: [String!]!, experience: [Experience!]!): Candidate!
+    createCandidate(name: String!, email: String!, resume: String, skills: [String!]!, experience: [ExperienceInput!]!): Candidate!
     signup(email: String!, password: String!): AuthPayload!
     login(email: String!, password: String!): AuthPayload!
   }
