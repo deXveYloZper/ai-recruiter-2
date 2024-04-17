@@ -52,7 +52,7 @@ export const typeDefs = gql`
     candidate(id: ID!): Candidate
     me: User
     companies(skip: Int, limit: Int, name: String): [Company!]!
-    jobs(skip: Int, limit: Int, title: String, companyId: Int): [Job!]!
+    jobs(skip: Int, limit: Int, title: String, companyId: ID!): [Job!]!
     candidates(skip: Int, limit: Int, name: String, skills: [String!]): [Candidate!]!
   }
 
@@ -62,9 +62,9 @@ export const typeDefs = gql`
     createCandidate(name: String!, email: String!, resume: String, skills: [String!]!, experience: [Experience!]!): Candidate!
     signup(email: String!, password: String!): AuthPayload!
     login(email: String!, password: String!): AuthPayload!
-
   }
 `;
+
 
 /*
 We define types for Company, Job, Candidate, and Experience.

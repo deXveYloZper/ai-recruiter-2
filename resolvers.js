@@ -1,131 +1,92 @@
 import { PrismaClient } from '@prisma/client';
 import { AuthenticationError, UserInputError } from 'apollo-server-express';
-import { generateToken, verifyToken, hashPassword, comparePassword } from './auth';
-import { ValidationError } from './errors.js';
+import { generateToken, verifyToken, hashPassword, comparePassword } from './auth.js';
+import { ValidationError, AuthorizationError, NotFoundError } from './errors.js';
 
 const prisma = new PrismaClient();
 
 export const resolvers = {
   Query: {
-    company: (_, { id }) => prisma.company.findUnique({ where: { id: Number(id) } }),
-    job: (_, { id }) => prisma.job.findUnique({ where: { id: Number(id) } }),
-    candidate: (_, { id }) => prisma.candidate.findUnique({ where: { id: Number(id) } }),
+    company: async (_, { id }) => {
+      const company = await prisma.company.findUnique({ where: { id: Number(id) } });
+      if (!company) throw new NotFoundError('Company not found');
+      return company;
+    },
+    job: async (_, { id }) => {
+      const job = await prisma.job.findUnique({ where: { id: Number(id) } });
+      if (!job) throw new NotFoundError('Job not found');
+      return job;
+    },
+    candidate: async (_, { id }) => {
+      const candidate = await prisma.candidate.findUnique({ where: { id: Number(id) } });
+      if (!candidate) throw new NotFoundError('Candidate not found');
+      return candidate;
+    },
     me: async (_, __, { userId }) => {
-      if (!userId) {
-        throw new AuthenticationError('Authentication required');
-      }
-      return prisma.user.findUnique({ where: { id: userId } });
+      if (!userId) throw new AuthenticationError('Authentication required');
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) throw new NotFoundError('User not found');
+      return user;
     },
     companies: async (_, { skip = 0, limit = 10, name }) => {
-      const where = name ? { name: { contains: name } } : {};
-      return prisma.company.findMany({
-        skip,
-        take: limit,
-        where,
-      });
+      const where = name ? { name: { contains: name, mode: 'insensitive' } } : {};
+      return prisma.company.findMany({ skip, take: limit, where });
     },
     jobs: async (_, { skip = 0, limit = 10, title, companyId }) => {
       const where = {
-        ...(title && { title: { contains: title } }),
-        ...(companyId && { companyId }),
+        ...(title && { title: { contains: title, mode: 'insensitive' } }),
+        ...(companyId && { companyId: Number(companyId) }),
       };
-      return prisma.job.findMany({
-        skip,
-        take: limit,
-        where,
-      });
+      return prisma.job.findMany({ skip, take: limit, where });
     },
     candidates: async (_, { skip = 0, limit = 10, name, skills }) => {
       const where = {
-        ...(name && { name: { contains: name } }),
+        ...(name && { name: { contains: name, mode: 'insensitive' } }),
         ...(skills && { skills: { hasSome: skills } }),
       };
-      return prisma.candidate.findMany({
-        skip,
-        take: limit,
-        where,
-      });
+      return prisma.candidate.findMany({ skip, take: limit, where });
     },
-    
   },
   Mutation: {
     createCompany: async (_, { name, description, website }, { userId }) => {
-      if (!userId) {
-        throw new AuthenticationError('Authentication required');
-      }
-      if (!name) {
-        throw new ValidationError('Company name is required', 'name');
-      }
-      try {
-        return prisma.company.create({
-          data: { name, description, website },
-        });
-      } catch (error) {
-        throw new UserInputError('Failed to create company', { cause: error });
-      }
+      if (!userId) throw new AuthenticationError('Authentication required');
+      if (!name) throw new ValidationError('Company name is required', 'name');
+      return prisma.company.create({ data: { name, description, website } });
     },
-
     createJob: async (_, { title, description, requirements, companyId }, { userId }) => {
-      if (!userId) {
-        throw new AuthenticationError('Authentication required');
+      if (!userId) throw new AuthenticationError('Authentication required');
+      if (!title || !description || !companyId) {
+        throw new ValidationError('Missing required fields', 'form');
       }
-      if (!title) {
-        throw new ValidationError('Job title is required', 'title');
-      }
-      if (!description) {
-        throw new ValidationError('Job description is required', 'description');
-      }
-      if (!companyId) {
-        throw new ValidationError('Company ID is required', 'companyId');
-      }
-      try {
-        return prisma.job.create({
-          data: {
-            title,
-            description,
-            requirements,
-            company: { connect: { id: companyId } },
-          },
-        });
-      } catch (error) {
-        throw new UserInputError('Failed to create job', { cause: error });
-      }
+      return prisma.job.create({
+        data: { title, description, requirements, company: { connect: { id: Number(companyId) } } },
+      });
     },
-    createCandidate: (_, { name, email, resume, skills, experience }) => {
+    createCandidate: async (_, { name, email, resume, skills, experience }) => {
       return prisma.candidate.create({
         data: {
-          name,
-          email,
-          resume,
-          skills,
-          experience: {
-            create: experience,
-          },
+          name, email, resume, skills,
+          experience: { create: experience },
         },
       });
     },
     signup: async (_, { email, password }) => {
       const hashedPassword = await hashPassword(password);
-      const user = await prisma.user.create({
-        data: { email, password: hashedPassword },
-      });
+      const user = await prisma.user.create({ data: { email, password: hashedPassword } });
       const token = generateToken(user);
       return { token, user };
     },
     login: async (_, { email, password }) => {
       const user = await prisma.user.findUnique({ where: { email } });
-      if (!user) {
-        throw new AuthenticationError('Invalid email or password');
-      }
+      if (!user) throw new AuthenticationError('Invalid email');
       const isPasswordValid = await comparePassword(password, user.password);
-      if (!isPasswordValid) {
-        throw new AuthenticationError('Invalid email or password');
-      }
+      if (!isPasswordValid) throw new AuthenticationError('Invalid password');
       const token = generateToken(user);
       return { token, user };
     },
   },
 };
+
 
 /* 
 We define sample data arrays for `companies`, `jobs`, and `candidates` (replace this with actual database integration later).

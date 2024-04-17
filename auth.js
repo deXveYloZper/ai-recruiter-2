@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { AuthenticationError } from 'apollo-server-express';
 
-const JWT_SECRET = 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET
 
 export const generateToken = (user) => {
   return jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1h' });

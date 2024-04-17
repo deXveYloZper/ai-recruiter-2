@@ -4,25 +4,26 @@ import { typeDefs } from './schema.js';
 import { resolvers } from './resolvers.js';
 import { verifyToken } from './auth.js';
 import logger from './logger.js';
-import statusMonitor from 'express-status-monitor';
+import cors from 'cors';
+import helmet from 'helmet';
 
 const app = express();
-app.use(statusMonitor());
+app.use(helmet());  // Secure apps by setting various HTTP headers
+app.use(cors());  // Enable CORS with default settings
 
 const startServer = async () => {
   const server = new ApolloServer({
     typeDefs,
     resolvers,
     context: ({ req }) => {
-      const token = req.headers.authorization || '';
-      const userId = verifyToken(token);
+      const token = req.headers.authorization ? req.headers.authorization.split(" ")[1] : '';
+      const userId = token ? verifyToken(token) : null;
       return { userId };
     },
     plugins: [
       {
         requestDidStart(requestContext) {
           logger.info('Request started', requestContext.request);
-  
           return {
             didEncounterErrors(requestContext) {
               logger.error('Request encountered errors', requestContext.errors);
@@ -31,23 +32,25 @@ const startServer = async () => {
               logger.info('Request completed', requestContext.response);
             },
           };
-        },    },
+        },
+      }
     ],
   });
 
   await server.start();
-  server.applyMiddleware({ app });
+  server.applyMiddleware({ app, path: '/graphql' }); // Set the path for the GraphQL API
 
   const PORT = process.env.PORT || 4000;
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
-    console.log(`GraphQL endpoint: http://localhost:${PORT}${server.graphqlPath}`);
+    console.log(`GraphQL endpoint: http://localhost:${PORT}/graphql`);
   });
 };
 
 startServer().catch((error) => {
   logger.error('Error starting server', error);
 });
+
 
 
 /*

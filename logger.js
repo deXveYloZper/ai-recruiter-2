@@ -1,4 +1,13 @@
 import winston from 'winston';
+import 'winston-daily-rotate-file';
+
+const fileRotateTransport = new winston.transports.DailyRotateFile({
+  filename: 'logs/application-%DATE%.log',
+  datePattern: 'YYYY-MM-DD-HH',
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '14d'
+});
 
 const logger = winston.createLogger({
   level: 'info',
@@ -9,18 +18,18 @@ const logger = winston.createLogger({
   ),
   defaultMeta: { service: 'ai-recruitment-platform' },
   transports: [
+    fileRotateTransport,
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
         winston.format.simple()
       ),
     }),
-    new winston.transports.File({ filename: 'error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'combined.log' }),
   ],
 });
 
 export default logger;
+
 
 
 /*
